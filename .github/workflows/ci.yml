@@ -21,6 +21,9 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Test desktop and mobile WebGL gameplay
         run: npx playwright test
+      - name: Annotate browser failures
+        if: failure()
+        run: node scripts/report-ci.mjs
       - name: Preserve browser report and screenshots
         if: always()
         uses: actions/upload-artifact@v4
