@@ -1,6 +1,8 @@
-name: Publish to GitHub Pages (manual)
+name: Publish live campus to GitHub Pages
 on:
   workflow_dispatch:
+  repository_dispatch:
+    types: [publish-campus-live]
 permissions:
   contents: read
   pages: write
@@ -14,16 +16,47 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: node --test tests/*.test.mjs
-      - run: node scripts/build.mjs
-      - uses: actions/configure-pages@v5
+      - name: Verify core gameplay and server
+        run: node --test tests/*.test.mjs
+      - name: Build static campus
+        run: node scripts/build.mjs
+      - name: Configure and enable GitHub Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
-      - uses: actions/deploy-pages@v4
+      - name: Deploy live campus
+        uses: actions/deploy-pages@v4
         id: deployment
+      - name: Verify published entry point and all game modules
+        env:
+          SITE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          const base = process.env.SITE_URL;
+          assert.ok(base && base.startsWith('https://'));
+          for (const path of ['', 'style.css', 'src/data.js', 'src/engine.js', 'src/world.js', 'src/state.js', 'src/game.js']) {
+            let good = false;
+            for (let attempt = 0; attempt < 12; attempt++) {
+              const response = await fetch(new URL(path, base));
+              const text = await response.text();
+              if (response.ok && (path ? text.length > 500 : text.includes('SP: Campus Odyssey'))) {
+                console.log(`Verified ${new URL(path, base)} (${response.status})`);
+                good = true;
+                break;
+              }
+              await new Promise(resolve => setTimeout(resolve, 10000));
+            }
+            assert.ok(good, `Published resource unavailable: ${path || '/'}`);
+          }
+          console.log(`::notice title=Verified live campus::${base}`);
+          NODE
