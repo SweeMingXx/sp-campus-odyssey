@@ -1,0 +1,1 @@
+{"name":"sp-campus-odyssey","version":"1.0.0","private":true,"type":"module","description":"Dependency-free 3D campus exploration RPG","scripts":{"start":"node server.mjs","test":"node --test tests/*.test.mjs","build":"node scripts/build.mjs"},"engines":{"node":">=20"}}
