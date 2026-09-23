@@ -1,0 +1,12 @@
+import {mkdir,cp,writeFile,readFile} from "node:fs/promises";
+import {fileURLToPath} from "node:url";
+import {resolve} from "node:path";
+import {createHash} from "node:crypto";
+const root=fileURLToPath(new URL("../",import.meta.url));
+await mkdir(resolve(root,"dist"),{recursive:true});
+for(const name of ["index.html","style.css","src"])await cp(resolve(root,name),resolve(root,"dist",name),{recursive:true});
+const files=["index.html","style.css",...(["data","engine","world","state","game"].map(n=>`src/${n}.js`))];
+const manifest={version:1,files:{}};
+for(const f of files)manifest.files[f]=createHash("sha256").update(await readFile(resolve(root,f))).digest("hex");
+await writeFile(resolve(root,"dist/build-manifest.json"),JSON.stringify(manifest,null,2));
+console.log(`Built ${files.length} runtime files. No installation or CDN required.`);
